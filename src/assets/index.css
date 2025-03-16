@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme:dark;
+  color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #2a2a2a;
 
@@ -13,7 +13,6 @@
 body {
   display: flex;
   justify-content: center;
-  text-align: center;  
-  @apply leading-relaxed tracking-wide font-bold
+  text-align: center;
+  @apply leading-relaxed tracking-wide font-bold;
 }
-

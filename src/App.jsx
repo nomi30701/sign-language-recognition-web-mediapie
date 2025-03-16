@@ -13,6 +13,8 @@ function SettingsPanel({
   gestureRecognizerRef,
   imgSrc,
   camera_stream,
+  modelState,
+  setModelState,
 }) {
   return (
     <div className="container text-lg flex flex-col md:flex-row md:justify-evenly gap-2 md:gap-6">
@@ -20,10 +22,40 @@ function SettingsPanel({
         <label htmlFor="device-selector">delegate:</label>
         <select
           name="device-selector"
-          onChange={(e) => {
-            gestureRecognizerRef.current.setOptions({
-              delegate: e.target.value,
-            });
+          onChange={async (e) => {
+            try {
+              setModelState((prev) => ({
+                ...prev,
+                statusMsg: "Switching delegate...",
+                statusColor: "orange",
+                isLoaded: false,
+              }));
+              setTimeout(async () => {
+                try {
+                  await gestureRecognizerRef.current.setOptions({
+                    delegate: e.target.value,
+                    runningMode: modelState.runningMode,
+                    numHands: 2,
+                  });
+
+                  setModelState((prev) => ({
+                    ...prev,
+                    statusMsg: `Delegate switched to ${e.target.value}`,
+                    statusColor: "green",
+                    isLoaded: true,
+                  }));
+                } catch (error) {
+                  console.error("Switch delegate falid", error);
+                  setModelState((prev) => ({
+                    ...prev,
+                    statusMsg: "Switch delegate falid",
+                    statusColor: "red",
+                  }));
+                }
+              }, 50);
+            } catch (error) {
+              console.error("Switch delegate falid: ", error);
+            }
           }}
           disabled={imgSrc || camera_stream}
         >
@@ -55,7 +87,6 @@ function ImageDisplay({
   camera_stream,
   onCameraLoad,
   onImageLoad,
-  isProcessing,
 }) {
   return (
     <div className="container bg-stone-700 shadow-lg relative min-h-[320px] flex justify-center items-center">
@@ -76,11 +107,6 @@ function ImageDisplay({
         className="block md:max-w-[720px] max-h-[640px] rounded-lg"
       />
       <canvas ref={overlayRef} className="absolute"></canvas>
-      {isProcessing && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white">
-          <div className="animate-pulse text-xl">Processing...</div>
-        </div>
-      )}
     </div>
   );
 }
@@ -243,6 +269,7 @@ function App() {
     inferenceTime: 0,
     statusMsg: "Model not loaded",
     statusColor: "inherit",
+    runningMode: "IMAGE",
   });
   const {
     isLoaded: isModelLoaded,
@@ -250,6 +277,7 @@ function App() {
     inferenceTime,
     statusMsg,
     statusColor,
+    runningMode,
   } = modelState;
 
   // resource reference
@@ -269,7 +297,6 @@ function App() {
   const [camera_stream, setCameraStream] = useState(null);
   const [imgSrc, setImgSrc] = useState(null);
   const [handResults, setHandResults] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
 
   // init
   useEffect(() => {
@@ -300,22 +327,20 @@ function App() {
       statusMsg: "Loading MediaPipe model...",
       statusColor: "red",
       isLoaded: false,
+      runningMode: "IMAGE",
     }));
 
     try {
       const start = performance.now();
 
       // Load the GestureRecognizer model
-      const vision = await FilesetResolver.forVisionTasks(
-        "./wasm"
-      );
+      const vision = await FilesetResolver.forVisionTasks("./wasm");
 
       gestureRecognizerRef.current = await GestureRecognizer.createFromOptions(
         vision,
         {
           baseOptions: {
-            modelAssetPath:
-              `./models/gesture_recognizer.task`,
+            modelAssetPath: `./models/gesture_recognizer.task`,
             delegate: "GPU",
           },
           runningMode: "IMAGE",
@@ -372,6 +397,8 @@ function App() {
         if (overlayRef.current) {
           overlayRef.current.width = 0;
           overlayRef.current.height = 0;
+          overlayRef.current.style.width = `0px`;
+          overlayRef.current.style.height = `0px`;
         }
         setHandResults([]);
       }
@@ -383,13 +410,23 @@ function App() {
     if (!imgRef.current || !overlayRef.current || !gestureRecognizerRef.current)
       return;
 
-    setIsProcessing(true);
     overlayRef.current.width = imgRef.current.width;
     overlayRef.current.height = imgRef.current.height;
 
+    overlayRef.current.style.width = `${imgRef.current.width}px`;
+    overlayRef.current.style.height = `${imgRef.current.height}px`;
+
     try {
-      // Update running mode to IMAGE
-      gestureRecognizerRef.current.setOptions({ runningMode: "IMAGE" });
+      if (runningMode !== "IMAGE") {
+        gestureRecognizerRef.current.setOptions({
+          runningMode: "IMAGE",
+          numHands: 2,
+        });
+        setModelState((prev) => ({
+          ...prev,
+          runningMode: "IMAGE",
+        }));
+      }
 
       const start = performance.now();
 
@@ -421,10 +458,8 @@ function App() {
       }));
     } catch (error) {
       console.error("Image processing error:", error);
-    } finally {
-      setIsProcessing(false);
     }
-  }, []);
+  }, [runningMode]);
 
   const handle_ToggleCamera = useCallback(async () => {
     if (camera_stream) {
@@ -432,21 +467,24 @@ function App() {
       camera_stream.getTracks().forEach((track) => track.stop());
       cameraRef.current.srcObject = null;
       setCameraStream(null);
-      if (overlayRef.current) {
-        overlayRef.current.width = 0;
-        overlayRef.current.height = 0;
-        overlayRef.current.style.width = `0px`;
-        overlayRef.current.style.height = `0px`;
-      }
+      overlayRef.current.width = 0;
+      overlayRef.current.height = 0;
+      overlayRef.current.style.width = `0px`;
+      overlayRef.current.style.height = `0px`;
+
       setHandResults([]);
     } else if (cameraSelectorRef.current && cameraSelectorRef.current.value) {
       try {
         // Set running mode to VIDEO before starting camera
-        if (gestureRecognizerRef.current) {
+        if (runningMode !== "VIDEO" && gestureRecognizerRef.current) {
           gestureRecognizerRef.current.setOptions({
             runningMode: "VIDEO",
             numHands: 2,
           });
+          setModelState((prev) => ({
+            ...prev,
+            runningMode: "VIDEO",
+          }));
         }
 
         // open camera
@@ -462,7 +500,7 @@ function App() {
         console.error("Error accessing camera:", err);
       }
     }
-  }, [camera_stream]);
+  }, [camera_stream, runningMode]);
 
   const handle_cameraLoad = useCallback(() => {
     if (
@@ -559,7 +597,7 @@ function App() {
   return (
     <>
       <h1 className="my-4 md:my-8 text-3xl md:text-4xl px-2">
-        Hand Detection with MediaPipe
+        Hand Gesture Recognition with MediaPipe
       </h1>
 
       <SettingsPanel
@@ -568,6 +606,8 @@ function App() {
         gestureRecognizerRef={gestureRecognizerRef}
         imgSrc={imgSrc}
         camera_stream={camera_stream}
+        modelState={modelState}
+        setModelState={setModelState}
       />
 
       <ImageDisplay
@@ -579,7 +619,6 @@ function App() {
         camera_stream={camera_stream}
         onCameraLoad={handle_cameraLoad}
         onImageLoad={handle_ImageLoad}
-        isProcessing={isProcessing}
       />
 
       <ControlButtons
