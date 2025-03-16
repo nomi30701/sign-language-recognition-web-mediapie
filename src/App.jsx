@@ -307,14 +307,15 @@ function App() {
 
       // Load the GestureRecognizer model
       const vision = await FilesetResolver.forVisionTasks(
-        "/node_modules/@mediapipe/tasks-vision/wasm"
+        "./wasm"
       );
 
       gestureRecognizerRef.current = await GestureRecognizer.createFromOptions(
         vision,
         {
           baseOptions: {
-            modelAssetPath: `${window.location.href}/models/gesture_recognizer.task`,
+            modelAssetPath:
+              `./models/gesture_recognizer.task`,
             delegate: "GPU",
           },
           runningMode: "IMAGE",
