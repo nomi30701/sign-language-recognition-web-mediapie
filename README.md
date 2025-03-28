@@ -1,7 +1,7 @@
 # ✋ Hand Gesture Recognition with MediaPipe browser
 
 <div align="center">
-<img src="https://github.com/nomi30701/hand-gesture-recognition-web/blob/main/preview.png" width="70%" alt="YOLO Multi-Task Preview">
+<img src="https://github.com/nomi30701/sign-language-recognition-web-mediapie/blob/main/preview.png" width="70%" alt="YOLO Multi-Task Preview">
 </div>
 
 ## 📝 Description
