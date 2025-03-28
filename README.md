@@ -12,7 +12,7 @@ This browser-based hand gesture recognition application uses MediaPipe to detect
 
 ## 📊 Data Sources
 - Sign Language Model: Trained on the [Sign Language MNIST dataset](https://www.kaggle.com/datasets/datamunge/sign-language-mnist/data), which contains numerous labeled images of American Sign Language letters
-- Rock-Paper-Scissors Model: Developed and trained following the (official MediaPipe tutorial)[https://ai.google.dev/edge/mediapipe/solutions/customization/gesture_recognizer]
+- Rock-Paper-Scissors Model: Developed and trained following the [official MediaPipe tutorial](https://ai.google.dev/edge/mediapipe/solutions/customization/gesture_recognizer) 
 
 ## 🤟 Sign Language Reference Chart
 <div align="center"> <img src="https://github.com/nomi30701/sign-language-recognition-web-mediapie/blob/main/sign_language_example.png" width="70%" alt="Sign Language Reference Chart"> </div>
