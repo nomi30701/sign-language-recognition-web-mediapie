@@ -43,6 +43,7 @@ function SettingsPanel({
                     statusMsg: `Delegate switched to ${e.target.value}`,
                     statusColor: "green",
                     isLoaded: true,
+                    delegate: e.target.value,
                   }));
                 } catch (error) {
                   console.error("Switch delegate falid", error);
@@ -61,6 +62,68 @@ function SettingsPanel({
         >
           <option value="GPU">webGL(GPU)</option>
           <option value="CPU">Wasm(CPU)</option>
+        </select>
+      </div>
+      <div>
+        <label htmlFor="model-selector">model:</label>
+        <select
+          name="model-selector"
+          onChange={async (e) => {
+            try {
+              setModelState((prev) => ({
+                ...prev,
+                statusMsg: "Switching model...",
+                statusColor: "orange",
+                isLoaded: false,
+              }));
+
+              // Close existing model
+              if (gestureRecognizerRef.current) {
+                gestureRecognizerRef.current.close();
+              }
+
+              // Load new model
+              setTimeout(async () => {
+                try {
+                  const vision = await FilesetResolver.forVisionTasks("./wasm");
+
+                  gestureRecognizerRef.current =
+                    await GestureRecognizer.createFromOptions(vision, {
+                      baseOptions: {
+                        modelAssetPath: `./models/${e.target.value}`,
+                        delegate: modelState.delegate,
+                      },
+                      runningMode: modelState.runningMode,
+                      numHands: 2,
+                    });
+
+                  setModelState((prev) => ({
+                    ...prev,
+                    statusMsg: `Model switched to ${e.target.value}`,
+                    statusColor: "green",
+                    isLoaded: true,
+                    currentModel: e.target.value,
+                  }));
+                } catch (error) {
+                  console.error("Switch model failed", error);
+                  setModelState((prev) => ({
+                    ...prev,
+                    statusMsg: "Switch model failed",
+                    statusColor: "red",
+                  }));
+                }
+              }, 50);
+            } catch (error) {
+              console.error("Switch model failed: ", error);
+            }
+          }}
+          disabled={imgSrc || camera_stream}
+        >
+          <option value="sing_language.task">Sign Language</option>
+          <option value="gesture_recognizer_rps.task">
+            Rock-Paper-Scissors
+          </option>
+          <option value="gesture_recognizer.task">General Gestures</option>
         </select>
       </div>
       <div>
@@ -176,7 +239,7 @@ function ResultsTable({ results }) {
   }
 
   return (
-    <details className="text-gray-200 group px-2">
+    <details className="text-gray-200 group px-2" open>
       <summary className="my-2 hover:text-gray-400 cursor-pointer transition-colors duration-300">
         Detection Results ({results.handedness.length})
       </summary>
@@ -263,6 +326,7 @@ function ModelStatus({ warnUpTime, inferenceTime, statusMsg, statusColor }) {
 }
 
 function App() {
+  // In the App component
   const [modelState, setModelState] = useState({
     isLoaded: false,
     warnUpTime: 0,
@@ -270,6 +334,8 @@ function App() {
     statusMsg: "Model not loaded",
     statusColor: "inherit",
     runningMode: "IMAGE",
+    currentModel: "sing_language.task",
+    delegate: "GPU",
   });
   const {
     isLoaded: isModelLoaded,
@@ -340,8 +406,8 @@ function App() {
         vision,
         {
           baseOptions: {
-            modelAssetPath: `./models/gesture_recognizer.task`,
-            delegate: "GPU",
+            modelAssetPath: `./models/${modelState.currentModel}`,
+            delegate: modelState.delegate,
           },
           runningMode: "IMAGE",
           numHands: 2,
