@@ -17,5 +17,5 @@ export default defineConfig({
     }),
   ],
   
-  base: "/hand-gesture-recognition-web/"
+  base: "/sign-language-recognition-web-mediapie/"
 })
